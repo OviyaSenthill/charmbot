@@ -80,7 +80,7 @@ ANTENNA_THICK = 5.0   # keep >= 4 for strength
 
 # Stylus holder: a "headband" tube along the top edge. Measure your stylus!
 STYLUS = True
-STYLUS_D = 5.0        # stylus diameter at its THICKEST point (mm)
+STYLUS_D = 4.0        # stylus diameter at its THICKEST point (mm): measured top ~4 mm, barrel ~3 mm, 90 mm long
 STYLUS_FIT = 0.35     # extra room in the hole (bigger = looser). Friction holds it in.
 STYLUS_WALL = 2.0     # tube wall thickness
 STYLUS_OPEN_SIDE = +1 # which end the stylus slides in: +1 right, -1 left
@@ -170,6 +170,7 @@ def make_back():
 
     # Stylus holder tube along the top edge (lies on the bed; teardrop hole prints without supports)
     top = OUT_H / 2
+    stylus_bore = None
     if STYLUS:
         bore_r = (STYLUS_D + STYLUS_FIT) / 2
         tube_r = bore_r + STYLUS_WALL
@@ -195,7 +196,7 @@ def make_back():
             bore = bore.translate((-tube_len / 2 + 3, 0, 0))
         else:
             bore = bore.translate((-tube_len / 2, 0, 0))
-        shell = shell.cut(bore)
+        stylus_bore = bore  # cut at the very end, after the antenna is added on top
         # Thumb notch at the open end so you can pinch the stylus out
         nx = STYLUS_OPEN_SIDE * (tube_len / 2 - 4)
         notch = cq.Workplane("XY").center(nx, ty).circle(4.5).extrude(20).translate((0, 0, tz))
@@ -212,6 +213,8 @@ def make_back():
     except Exception:
         pass
     shell = shell.union(antenna)
+    if stylus_bore is not None:
+        shell = shell.cut(stylus_bore)
     shell = shell.cut(cq.Workplane("XY").center(0, ball_y).circle(ANTENNA_HOLE_D / 2).extrude(ANTENNA_THICK + 2).translate((0, 0, -1)))
 
     # Back decorations (recessed into the back face)
