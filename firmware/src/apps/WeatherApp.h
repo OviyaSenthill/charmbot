@@ -2,24 +2,19 @@
 #include "core/App.h"
 
 // Current weather from Open-Meteo (free, no API key).
-// Data is kept between visits; refreshes every 15 minutes.
+// Data is fetched in the background by core/WeatherService; this screen just draws it.
 class WeatherApp : public App {
 public:
   const char* name() const override { return "Weather"; }
-  void enter(TFT_eSPI& tft) override { dirty = true; }
+  void enter(TFT_eSPI& tft) override;
   void update(TFT_eSPI& tft, uint32_t now) override;
   void onTouch(const TouchEvent& e) override;
+  void drawIcon(TFT_eSPI& tft, int cx, int cy) override;
 
 private:
-  bool fetch();
   void draw(TFT_eSPI& tft);
-
-  bool hasData = false;
-  bool dirty = true;
-  bool forceRefresh = false;
-  uint32_t lastFetch = 0;
-  uint32_t lastAttempt = 0;
-
-  float temp = 0, feels = 0, wind = 0, hi = 0, lo = 0;
-  int humidity = 0, code = 0;
+  uint32_t shownVersion = 0xFFFFFFFF;
+  bool shownConnected = false;
+  bool shownBusy = false;
+  uint32_t shownMinute = 0;
 };

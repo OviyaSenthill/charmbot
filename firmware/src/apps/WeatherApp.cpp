@@ -1,11 +1,9 @@
 #include "apps/WeatherApp.h"
 #include "core/Net.h"
-#include <WiFiClientSecure.h>
-#include <HTTPClient.h>
-#include <ArduinoJson.h>
+#include "core/WeatherService.h"
 
-static const uint32_t REFRESH_MS = 15UL * 60 * 1000;
-static const uint32_t RETRY_MS = 30UL * 1000;
+// The downloading happens in the background (core/WeatherService), so this screen
+// only draws, and shows up instantly.
 
 // WMO weather codes -> short description
 static const char* describe(int c) {
@@ -39,7 +37,7 @@ static void sun(TFT_eSPI& g, int x, int y, int r) {
   g.fillCircle(x, y, r, TFT_YELLOW);
 }
 
-static void drawIcon(TFT_eSPI& g, int code, int x, int y) {
+static void drawWeatherIcon(TFT_eSPI& g, int code, int x, int y) {
   const uint16_t gray = 0xBDF7;
   if (code == 0) { sun(g, x, y, 22); return; }
   if (code <= 2) { sun(g, x - 14, y - 12, 16); cloud(g, x + 6, y + 8, gray); return; }
@@ -62,98 +60,95 @@ static void drawIcon(TFT_eSPI& g, int code, int x, int y) {
 }
 
 // ---------- app ----------
+void WeatherApp::enter(TFT_eSPI& tft) {
+  shownVersion = 0xFFFFFFFF;  // force a redraw
+  shownBusy = false;
+}
+
 void WeatherApp::onTouch(const TouchEvent& e) {
-  if (e.type == TouchEvent::TAP) forceRefresh = true;  // tap to refresh
+  if (e.type == TouchEvent::TAP) WeatherService::refreshNow();  // tap to refresh
 }
 
 void WeatherApp::update(TFT_eSPI& tft, uint32_t now) {
-  bool due = !hasData || now - lastFetch > REFRESH_MS || forceRefresh;
-  if (due && Net::connected() && (now - lastAttempt > RETRY_MS || lastAttempt == 0 || forceRefresh)) {
-    lastAttempt = now;
-    forceRefresh = false;
-    tft.setTextDatum(TR_DATUM);
-    tft.setTextColor(COL_DIM, COL_BG);
-    tft.drawString("updating...", SCREEN_W - 6, 6, 2);
-    if (fetch()) lastFetch = now;
-    dirty = true;
-  }
-  if (dirty) {
-    dirty = false;
+  uint32_t v = WeatherService::version();
+  bool connected = Net::connected();
+  uint32_t minute = now / 60000;  // also redraw once a minute so "updated N min ago" stays right
+  if (v != shownVersion || connected != shownConnected || minute != shownMinute) {
+    shownVersion = v;
+    shownConnected = connected;
+    shownMinute = minute;
     draw(tft);
+    shownBusy = false;
   }
-}
-
-bool WeatherApp::fetch() {
-  String url = "https://api.open-meteo.com/v1/forecast?latitude=" + String(WEATHER_LAT, 4) +
-               "&longitude=" + String(WEATHER_LON, 4) +
-               "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m"
-               "&daily=temperature_2m_max,temperature_2m_min&forecast_days=1&timezone=auto";
-#if WEATHER_UNITS_F
-  url += "&temperature_unit=fahrenheit&wind_speed_unit=mph";
-#endif
-
-  WiFiClientSecure client;
-  client.setInsecure();  // skip cert check — fine for public weather data
-  HTTPClient http;
-  if (!http.begin(client, url)) return false;
-  int status = http.GET();
-  if (status != 200) {
-    Serial.printf("[weather] HTTP %d\n", status);
-    http.end();
-    return false;
+  // little "updating" dot in the corner while a download runs
+  bool busy = WeatherService::busy();
+  if (busy != shownBusy) {
+    shownBusy = busy;
+    tft.fillCircle(SCREEN_W - 10, 10, 4, busy ? COL_ACCENT : COL_BG);
   }
-  String body = http.getString();
-  http.end();
-
-  JsonDocument doc;
-  if (deserializeJson(doc, body)) return false;
-
-  JsonObject cur = doc["current"];
-  temp = cur["temperature_2m"] | 0.0f;
-  feels = cur["apparent_temperature"] | 0.0f;
-  humidity = cur["relative_humidity_2m"] | 0;
-  code = cur["weather_code"] | 0;
-  wind = cur["wind_speed_10m"] | 0.0f;
-  hi = doc["daily"]["temperature_2m_max"][0] | 0.0f;
-  lo = doc["daily"]["temperature_2m_min"][0] | 0.0f;
-  hasData = true;
-  return true;
 }
 
 void WeatherApp::draw(TFT_eSPI& tft) {
+  WeatherData w;
+  bool has = WeatherService::get(w);
+  String err = WeatherService::lastError();
+
   tft.fillScreen(COL_BG);
   tft.setTextPadding(0);
+  tft.setTextDatum(MC_DATUM);
 
-  if (!hasData) {
-    tft.setTextDatum(MC_DATUM);
+  if (!has) {
     tft.setTextColor(COL_DIM, COL_BG);
-    tft.drawString(Net::connected() ? "Loading weather..." : "No WiFi", SCREEN_W / 2, SCREEN_H / 2, 4);
+    if (!Net::connected()) {
+      tft.drawString("No WiFi", SCREEN_W / 2, SCREEN_H / 2, 4);
+      tft.drawString("hold, then tap WiFi to pick a network", SCREEN_W / 2, SCREEN_H / 2 + 30, 2);
+    } else if (err.length()) {
+      tft.drawString("Weather unavailable", SCREEN_W / 2, SCREEN_H / 2, 4);
+      tft.drawString(err + " - retrying", SCREEN_W / 2, SCREEN_H / 2 + 30, 2);
+    } else {
+      tft.drawString("Loading weather...", SCREEN_W / 2, SCREEN_H / 2, 4);
+    }
     return;
   }
 
   const char* unit = WEATHER_UNITS_F ? "F" : "C";
   const char* windUnit = WEATHER_UNITS_F ? "mph" : "km/h";
 
-  drawIcon(tft, code, 80, 90);
+  drawWeatherIcon(tft, w.code, 80, 90);
 
   // Big temperature (font 7 has digits only, so draw the degree symbol by hand)
   tft.setTextDatum(TL_DATUM);
   tft.setTextColor(COL_FG, COL_BG);
-  String t = String((int)roundf(temp));
+  String t = String((int)roundf(w.temp));
   tft.drawString(t, 160, 52, 7);
-  int w = tft.textWidth(t, 7);
-  tft.drawCircle(160 + w + 8, 58, 5, COL_FG);
-  tft.drawCircle(160 + w + 8, 58, 4, COL_FG);
-  tft.drawString(unit, 160 + w + 16, 56, 4);
+  int tw = tft.textWidth(t, 7);
+  tft.drawCircle(160 + tw + 8, 58, 5, COL_FG);
+  tft.drawCircle(160 + tw + 8, 58, 4, COL_FG);
+  tft.drawString(unit, 160 + tw + 16, 56, 4);
 
   tft.setTextDatum(MC_DATUM);
   tft.setTextColor(COL_ACCENT, COL_BG);
-  tft.drawString(describe(code), SCREEN_W / 2, 150, 4);
+  tft.drawString(describe(w.code), SCREEN_W / 2, 150, 4);
 
   char line[64];
   tft.setTextColor(COL_DIM, COL_BG);
-  snprintf(line, sizeof(line), "H %d  L %d   feels %d", (int)roundf(hi), (int)roundf(lo), (int)roundf(feels));
+  snprintf(line, sizeof(line), "H %d  L %d   feels %d", (int)roundf(w.hi), (int)roundf(w.lo), (int)roundf(w.feels));
   tft.drawString(line, SCREEN_W / 2, 185, 2);
-  snprintf(line, sizeof(line), "wind %d %s   humidity %d%%", (int)roundf(wind), windUnit, humidity);
+  snprintf(line, sizeof(line), "wind %d %s   humidity %d%%", (int)roundf(w.wind), windUnit, w.humidity);
   tft.drawString(line, SCREEN_W / 2, 208, 2);
+
+  // How old the data is
+  uint32_t mins = (millis() - w.fetchedAt) / 60000;
+  tft.setTextDatum(TL_DATUM);
+  String age = "updated just now";
+  if (mins > 0) age = "updated " + String(mins) + " min ago";
+  tft.drawString(age, 6, 4, 2);
+}
+
+void WeatherApp::drawIcon(TFT_eSPI& tft, int cx, int cy) {
+  const uint16_t gray = 0xBDF7;
+  tft.fillCircle(cx - 5, cy - 6, 8, TFT_YELLOW);
+  tft.fillCircle(cx - 3, cy + 4, 7, gray);
+  tft.fillCircle(cx + 5, cy + 1, 8, gray);
+  tft.fillRoundRect(cx - 12, cy + 3, 25, 9, 4, gray);
 }

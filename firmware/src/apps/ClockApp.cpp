@@ -12,6 +12,7 @@ void ClockApp::update(TFT_eSPI& tft, uint32_t now) {
       tft.setTextDatum(MC_DATUM);
       tft.setTextColor(COL_DIM, COL_BG);
       tft.drawString(state ? "Syncing time..." : "Connecting to WiFi...", SCREEN_W / 2, SCREEN_H / 2, 4);
+      if (!state) tft.drawString("hold, then tap WiFi to pick a network", SCREEN_W / 2, SCREEN_H / 2 + 30, 2);
     }
     return;
   }
@@ -57,4 +58,11 @@ void ClockApp::update(TFT_eSPI& tft, uint32_t now) {
   tft.setTextColor(COL_ACCENT, COL_BG);
   tft.drawString(dateBuf, SCREEN_W / 2, 185, 4);
   tft.setTextPadding(0);
+}
+
+void ClockApp::drawIcon(TFT_eSPI& tft, int cx, int cy) {
+  tft.drawCircle(cx, cy, 14, COL_FG);
+  tft.drawCircle(cx, cy, 13, COL_FG);
+  tft.drawWideLine(cx, cy, cx, cy - 9, 3, COL_FG, COL_PANEL);      // minute hand
+  tft.drawWideLine(cx, cy, cx + 7, cy + 2, 3, COL_EYE, COL_PANEL); // hour hand
 }

@@ -28,6 +28,11 @@ EXPRESSIONS = [
     ("Bored",     "line", "line", None,      "flat",       "cyan", False),
     ("Content",   "arc",  "arc",  None,      "small",      "cyan", False),
     ("Sad",       "oval", "oval", None,      "frown",      "cyan", False),
+    ("Sleepy",    "oval40", "oval40", None,  "flat",       "cyan", False),
+    ("Asleep",    "line", "line", None,      None,         "cyan", False),
+    ("Yawn",      "line", "line", None,      "o",          "cyan", False),
+    ("Dizzy",     "spiral", "spiral", None,  "flat",       "cyan", False),
+    ("Sing",      "oval", "oval", None,      "o",          "cyan", False),
 ]
 
 
@@ -58,9 +63,16 @@ def heart(d, cx, cy, r, c):
 
 
 def eye(d, shape, cx, cy, big, col, glow):
-    if shape == "oval":
+    if shape == "spiral":
+        for t in range(0, 721, 24):
+            r = 2 + t / 40
+            a = math.radians(t)
+            circle(d, cx + r * math.cos(a), cy + r * math.sin(a), 3, col)
+        return
+    if shape.startswith("oval"):
         s = 1.2 if big else 1.0
-        rx, ry = EYE_W / 2 * s, EYE_H / 2 * s
+        open_ = int(shape[4:]) / 100 if len(shape) > 4 else 1.0
+        rx, ry = EYE_W / 2 * s, max(3, EYE_H / 2 * s * open_)
         ellipse(d, cx, cy, rx + GLOW_PX, ry + GLOW_PX, glow)
         ellipse(d, cx, cy, rx, ry, col)
     elif shape == "arc":
@@ -106,7 +118,7 @@ def render(expr):
 def main():
     out = sys.argv[1] if len(sys.argv) > 1 else "docs/face-preview.png"
     pad, label = 16, 26
-    cols, rows = 5, 2
+    cols, rows = 5, 3
     sheet = Image.new("RGB", (cols * (320 + pad) + pad, rows * (240 + pad + label) + pad), "#E8EEF5")
     d = ImageDraw.Draw(sheet)
     try:

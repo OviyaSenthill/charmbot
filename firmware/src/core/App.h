@@ -25,6 +25,25 @@ public:
   virtual void onTouch(const TouchEvent& e) {}
 
   // Return true if the app wants left/right swipes for itself (e.g. games).
-  // Long-press always returns to the home app.
   virtual bool capturesSwipes() const { return false; }
+
+  // Games live in the "Games" folder of the app wheel and are skipped
+  // by left/right swipe navigation.
+  virtual bool isGame() const { return false; }
+
+  // Called when the app wheel closes and this app is visible again.
+  // Default: start the screen over. Games override this to keep their state.
+  virtual void resume(TFT_eSPI& tft) {
+    exit();
+    tft.fillScreen(COL_BG);
+    enter(tft);
+  }
+
+  // Icon for the app wheel, centered on (cx, cy), about 36 px across.
+  virtual void drawIcon(TFT_eSPI& tft, int cx, int cy) {
+    char s[2] = {name()[0], 0};
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(COL_FG);
+    tft.drawString(s, cx, cy, 4);
+  }
 };

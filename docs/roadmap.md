@@ -2,14 +2,19 @@
 
 Each item is a good GitHub issue.
 
-## v0.1: desk dashboard (current)
-- [ ] Flash and verify display + touch (calibrate `TOUCH_*` in config.h)
-- [ ] Face app with 10 expressions, blinking and glancing
+## v0.1: desk dashboard
+- [x] Flash and verify display + touch
+- [x] Face app with 10 expressions, blinking and glancing
 - [ ] Clock (NTP)
 - [ ] Weather (Open-Meteo)
 - [ ] Spotify now playing + controls
-- [ ] Snake
-- [ ] Page dots / app name toast when switching apps
+- [x] Snake
+
+## v0.1.1: app wheel + games (current)
+- [ ] App wheel on long-press, with a Games folder
+- [ ] Flappy Bot
+- [ ] 2048
+- [ ] Games pause and keep progress; best scores saved to flash
 
 ## v0.2: personality
 - [ ] Mood engine: events (music started, tapped a lot, ignored, time of day) → expressions
@@ -28,12 +33,15 @@ Each item is a good GitHub issue.
 - [ ] Access-point mode (`Charmbot` WiFi) for uploads away from home
 
 ## v0.4: charm-ify
-- [ ] MPU-6050 on IO22/IO27 (I²C): tilt → eyes look, shake → dizzy, double-tap → wake
+- [ ] Shake → dizzy via the kit's tilt ball switch (supported, see docs/mood.md)
+- [ ] MPU-6050 (needs buying) on IO22/IO27 (I²C): tilt → eyes look, double-tap → wake
 - [ ] LiPo + TP4056 + boost/LDO power
 - [ ] Sleep after inactivity, wake on tap
-- [ ] Cartridge case v1 (see `hardware/case/`)
+- [ ] Print fit test, then case v2 (see `hardware/case/`)
+- [ ] Battery + charger + boost wired per `hardware/bom.md`
 
 ## More games
+- [ ] Stack (tap to drop blocks)
 - [ ] Pong vs. the robot
-- [ ] Flappy
+- [ ] Simon Says with robot expressions
 - [ ] Virtual pet mode tied to the mood engine

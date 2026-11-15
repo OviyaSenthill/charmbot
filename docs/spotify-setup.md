@@ -18,8 +18,10 @@ You only do this once.
 
 ## Notes
 
-- **Play/pause/skip need Spotify Premium.** Now-playing info works on free accounts.
-  Without Premium you'll see "Controls need Premium".
+- **You need Spotify Premium.** Since February 2026, Spotify only lets Premium accounts create
+  developer apps, and each person gets one app. If you don't see **Create app**, check that
+  you're logged in with a Premium account and that the browser window is wide enough for the
+  desktop layout (the button is at the top right of the dashboard).
 - Something has to be playing on *some* device (phone, laptop) for anything to show up.
 - Spotify changes its developer rules from time to time. If the dashboard asks for
   something not listed here, follow what it says.

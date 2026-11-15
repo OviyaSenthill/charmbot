@@ -8,6 +8,7 @@ public:
   const char* name() const override { return "Clock"; }
   void enter(TFT_eSPI& tft) override { lastSec = -1; lastState = -1; }
   void update(TFT_eSPI& tft, uint32_t now) override;
+  void drawIcon(TFT_eSPI& tft, int cx, int cy) override;
 
 private:
   int lastSec = -1;
